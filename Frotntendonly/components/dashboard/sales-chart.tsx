@@ -19,10 +19,29 @@ export function SalesChart() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
+    const fetchChartData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/reports/monthly-summary', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && result.data) {
+            setData(result.data)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch chart data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchChartData()
   }, [])
 
   if (isLoading) {

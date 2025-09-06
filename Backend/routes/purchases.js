@@ -153,12 +153,20 @@ router.post('/', [
       totalCost: item.quantity * item.unitCost
     }));
 
+    // Calculate totals
+    const subtotal = processedItems.reduce((sum, item) => sum + item.totalCost, 0);
+    const tax = taxAmount || 0;
+    const discount = discountAmount || 0;
+    const total = subtotal + tax - discount;
+
     const purchase = new Purchase({
       supplier,
       items: processedItems,
       expectedDeliveryDate,
-      taxAmount: taxAmount || 0,
-      discountAmount: discountAmount || 0,
+      subtotal,
+      taxAmount: tax,
+      discountAmount: discount,
+      totalAmount: total,
       notes,
       createdBy: req.user._id
     });

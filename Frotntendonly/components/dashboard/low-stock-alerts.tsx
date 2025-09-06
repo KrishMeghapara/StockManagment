@@ -22,7 +22,12 @@ export function LowStockAlerts() {
   useEffect(() => {
     const fetchLowStockItems = async () => {
       try {
-        const response = await fetch('/api/products?lowStock=true')
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/products?lowStock=true', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         if (response.ok) {
           const data = await response.json()
           const products = data.data?.products || []

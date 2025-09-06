@@ -4,7 +4,8 @@ const Supplier = require('../models/Supplier');
 const Product = require('../models/Product');
 const Purchase = require('../models/Purchase');
 const auth = require('../middleware/auth');
-const { checkPermission } = require('../middleware/roleCheck');
+const { checkRole } = require('../middleware/roleCheck');
+const { roles } = require('../config/auth');
 
 const router = express.Router();
 
@@ -13,49 +14,29 @@ const router = express.Router();
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    const { search, active, page = 1, limit = 10 } = req.query;
+    console.log('Fetching suppliers...')
     
-    let filter = {};
-    if (active) filter.isActive = active === 'true';
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { contactPerson: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const suppliers = await Supplier.find(filter)
+    const suppliers = await Supplier.find({ isActive: true })
       .populate('createdBy', 'firstName lastName')
-      .sort({ name: 1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+      .sort({ createdAt: -1 })
 
-    const total = await Supplier.countDocuments(filter);
+    console.log('Found suppliers:', suppliers.length)
 
     res.json({
       success: true,
       data: {
         suppliers,
-        pagination: {
-          current: parseInt(page),
-          pages: Math.ceil(total / parseInt(limit)),
-          total,
-          limit: parseInt(limit)
-        }
+        total: suppliers.length
       }
-    });
+    })
   } catch (error) {
-    console.error('Get suppliers error:', error);
+    console.error('Get suppliers error:', error)
     res.status(500).json({
       success: false,
-      message: 'Server error'
-    });
+      message: 'Server error: ' + error.message
+    })
   }
-});
+})
 
 // @route   GET /api/suppliers/:id
 // @desc    Get supplier by ID
@@ -107,11 +88,61 @@ router.get('/:id', auth, async (req, res) => {
 // @route   POST /api/suppliers
 // @desc    Create new supplier
 // @access  Private
-router.post('/', [
+router.post('/', auth, async (req, res) => {
+  try {
+    console.log('Received supplier data:', req.body)
+    console.log('User:', req.user)
+    
+    const { name, contactPerson, email, phone, address } = req.body
+
+    if (!name?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Supplier name is required'
+      })
+    }
+
+    const supplierData = {
+      name: name.trim(),
+      contactPerson: contactPerson?.trim() || '',
+      email: email?.trim() || undefined,
+      phone: phone?.trim() || '1234567890',
+      createdBy: req.user._id
+    }
+    
+    if (address?.trim()) {
+      supplierData.address = { street: address.trim() }
+    }
+    
+    console.log('Creating supplier with data:', supplierData)
+
+    const supplier = new Supplier(supplierData)
+    await supplier.save()
+    
+    console.log('Supplier saved:', supplier)
+
+    res.status(201).json({
+      success: true,
+      message: 'Supplier created successfully',
+      data: { supplier }
+    })
+  } catch (error) {
+    console.error('Create supplier error:', error)
+    console.error('Error details:', error.message)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error'
+    })
+  }
+})
+
+// @route   POST /api/suppliers/original
+// @desc    Create new supplier (original complex version)
+// @access  Private
+router.post('/original', [
   auth,
-  checkPermission('create'),
   body('name').trim().isLength({ min: 1, max: 100 }).withMessage('Supplier name must be 1-100 characters'),
-  body('phone').matches(/^[\+]?[1-9][\d]{0,15}$/).withMessage('Please enter a valid phone number'),
+  body('phone').optional().matches(/^[\+]?[1-9][\d]{0,15}$/).withMessage('Please enter a valid phone number'),
   body('email').optional().isEmail().normalizeEmail().withMessage('Please provide a valid email'),
   body('contactPerson').optional().trim().isLength({ max: 50 }).withMessage('Contact person name cannot exceed 50 characters'),
   body('paymentTerms').optional().isIn(['cash', 'net15', 'net30', 'net45', 'net60']).withMessage('Invalid payment terms'),
@@ -183,7 +214,6 @@ router.post('/', [
 // @access  Private
 router.put('/:id', [
   auth,
-  checkPermission('update'),
   body('name').optional().trim().isLength({ min: 1, max: 100 }).withMessage('Supplier name must be 1-100 characters'),
   body('phone').optional().matches(/^[\+]?[1-9][\d]{0,15}$/).withMessage('Please enter a valid phone number'),
   body('email').optional().isEmail().normalizeEmail().withMessage('Please provide a valid email'),
@@ -271,7 +301,7 @@ router.put('/:id', [
 // @access  Private
 router.delete('/:id', [
   auth,
-  checkPermission('delete')
+  checkRole([roles.OWNER, roles.MANAGER])
 ], async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id);

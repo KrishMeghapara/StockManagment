@@ -80,12 +80,55 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+// @route   POST /api/categories/seed
+// @desc    Seed default categories
+// @access  Private
+router.post('/seed', auth, async (req, res) => {
+  try {
+    const defaultCategories = [
+      { name: 'Electronics', description: 'Electronic devices and components' },
+      { name: 'Furniture', description: 'Office and home furniture' },
+      { name: 'Accessories', description: 'Various accessories and add-ons' },
+      { name: 'Office Supplies', description: 'Stationery and office equipment' },
+      { name: 'Tools', description: 'Hardware tools and equipment' },
+      { name: 'Clothing', description: 'Apparel and clothing items' },
+      { name: 'Books', description: 'Books and educational materials' },
+      { name: 'Sports', description: 'Sports equipment and gear' }
+    ]
+
+    const createdCategories = []
+    
+    for (const catData of defaultCategories) {
+      const existing = await Category.findOne({ name: catData.name })
+      if (!existing) {
+        const category = new Category({
+          ...catData,
+          createdBy: req.user._id
+        })
+        await category.save()
+        createdCategories.push(category)
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `${createdCategories.length} default categories created`,
+      data: { categories: createdCategories }
+    })
+  } catch (error) {
+    console.error('Seed categories error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
+  }
+})
+
 // @route   POST /api/categories
 // @desc    Create new category
 // @access  Private
 router.post('/', [
   auth,
-  checkPermission('create'),
   body('name').trim().isLength({ min: 1, max: 50 }).withMessage('Category name must be 1-50 characters'),
   body('description').optional().trim().isLength({ max: 200 }).withMessage('Description cannot exceed 200 characters'),
   body('parentCategory').optional().isMongoId().withMessage('Invalid parent category ID')

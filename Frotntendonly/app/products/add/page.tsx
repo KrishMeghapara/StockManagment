@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -48,14 +48,55 @@ export default function AddProductPage() {
   const [errors, setErrors] = useState<Partial<ProductForm>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState("")
+  const [categories, setCategories] = useState<Array<{id: string, name: string}>>([])
+  const [suppliers, setSuppliers] = useState<Array<{id: string, name: string}>>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
 
-  const categories = ["Electronics", "Furniture", "Accessories", "Office Supplies", "Tools"]
-  const suppliers = ["TechCorp", "FurniSupply", "AccessoryHub", "OfficeMax", "ToolWorld"]
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const headers = {
+          'Authorization': `Bearer ${token}`
+        }
+        
+        const [categoriesRes, suppliersRes] = await Promise.all([
+          fetch('/api/categories', { headers }),
+          fetch('/api/suppliers', { headers })
+        ])
+        
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json()
+          console.log('Categories data:', categoriesData)
+          setCategories(categoriesData.data?.categories || [])
+        } else {
+          console.error('Categories fetch failed:', categoriesRes.status)
+        }
+        
+        if (suppliersRes.ok) {
+          const suppliersData = await suppliersRes.json()
+          console.log('Suppliers data:', suppliersData)
+          setSuppliers(suppliersData.data?.suppliers || [])
+        } else {
+          console.error('Suppliers fetch failed:', suppliersRes.status)
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error)
+      } finally {
+        setIsLoadingData(false)
+      }
+    }
+    
+    fetchData()
+  }, [])
 
   const handleInputChange = (field: keyof ProductForm, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }))
+    console.log('Changing field:', field, 'to value:', value)
+    if (value && value !== 'undefined') {
+      setFormData((prev) => ({ ...prev, [field]: value }))
+      if (errors[field]) {
+        setErrors((prev) => ({ ...prev, [field]: undefined }))
+      }
     }
   }
 
@@ -113,35 +154,68 @@ export default function AddProductPage() {
     setSuccess("")
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      setSuccess("Product added successfully!")
-
-      // Reset form
-      setFormData({
-        name: "",
-        sku: "",
-        description: "",
-        category: "",
-        supplier: "",
-        unitPrice: "",
-        sellingPrice: "",
-        currentStock: "",
-        minStock: "",
-        maxStock: "",
-        status: "active",
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          sku: formData.sku,
+          description: formData.description,
+          category: formData.category,
+          supplier: formData.supplier,
+          costPrice: parseFloat(formData.unitPrice),
+          sellingPrice: parseFloat(formData.sellingPrice),
+          currentStock: parseInt(formData.currentStock),
+          minStockLevel: parseInt(formData.minStock),
+          maxStockLevel: parseInt(formData.maxStock),
+          unit: 'piece',
+          isActive: formData.status === 'active'
+        })
       })
-
-      // Redirect after success
-      setTimeout(() => {
-        router.push("/products")
-      }, 2000)
+      
+      if (response.ok) {
+        setSuccess("Product added successfully!")
+        
+        // Reset form
+        setFormData({
+          name: "",
+          sku: "",
+          description: "",
+          category: "",
+          supplier: "",
+          unitPrice: "",
+          sellingPrice: "",
+          currentStock: "",
+          minStock: "",
+          maxStock: "",
+          status: "active",
+        })
+        
+        // Redirect after success
+        setTimeout(() => {
+          router.push("/products")
+        }, 2000)
+      } else {
+        const error = await response.json()
+        console.error('Product creation error:', error)
+        console.error('Validation errors:', error.errors)
+        const errorMsg = error.errors ? 
+          error.errors.map((e: any) => `${e.path}: ${e.msg || e.message}`).join(', ') : 
+          error.message
+        alert(`Failed to add product: ${errorMsg}`)
+      }
     } catch (error) {
       console.error("Failed to add product:", error)
+      alert('Failed to add product. Please try again.')
     } finally {
       setIsLoading(false)
     }
+
+
   }
 
   return (
@@ -217,18 +291,47 @@ export default function AddProductPage() {
                       <div className="space-y-2">
                         <Label htmlFor="category">Category *</Label>
                         <Select
-                          value={formData.category}
-                          onValueChange={(value) => handleInputChange("category", value)}
+                          value={formData.category || ""}
+                          onValueChange={(value) => {
+                            console.log('Category selected:', value)
+                            handleInputChange("category", value)
+                          }}
                         >
                           <SelectTrigger className={errors.category ? "border-destructive" : ""}>
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category} value={category}>
-                                {category}
-                              </SelectItem>
-                            ))}
+                            {isLoadingData ? (
+                              <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                            ) : categories.length === 0 ? (
+                              <>
+                                <SelectItem value="no-categories" disabled>No categories found</SelectItem>
+                                <div className="p-2">
+                                  <Button 
+                                    size="sm" 
+                                    className="w-full" 
+                                    onClick={async () => {
+                                      const token = localStorage.getItem('token')
+                                      const response = await fetch('/api/categories/seed', {
+                                        method: 'POST',
+                                        headers: { 'Authorization': `Bearer ${token}` }
+                                      })
+                                      if (response.ok) {
+                                        window.location.reload()
+                                      }
+                                    }}
+                                  >
+                                    Add Default Categories
+                                  </Button>
+                                </div>
+                              </>
+                            ) : (
+                              categories.map((category) => (
+                                <SelectItem key={category.id || category._id} value={category.id || category._id}>
+                                  {category.name}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                         {errors.category && <p className="text-sm text-destructive">{errors.category}</p>}
@@ -236,18 +339,27 @@ export default function AddProductPage() {
                       <div className="space-y-2">
                         <Label htmlFor="supplier">Supplier *</Label>
                         <Select
-                          value={formData.supplier}
-                          onValueChange={(value) => handleInputChange("supplier", value)}
+                          value={formData.supplier || ""}
+                          onValueChange={(value) => {
+                            console.log('Supplier selected:', value)
+                            handleInputChange("supplier", value)
+                          }}
                         >
                           <SelectTrigger className={errors.supplier ? "border-destructive" : ""}>
                             <SelectValue placeholder="Select supplier" />
                           </SelectTrigger>
                           <SelectContent>
-                            {suppliers.map((supplier) => (
-                              <SelectItem key={supplier} value={supplier}>
-                                {supplier}
-                              </SelectItem>
-                            ))}
+                            {isLoadingData ? (
+                              <SelectItem value="loading" disabled>Loading suppliers...</SelectItem>
+                            ) : suppliers.length === 0 ? (
+                              <SelectItem value="no-suppliers" disabled>No suppliers found</SelectItem>
+                            ) : (
+                              suppliers.map((supplier) => (
+                                <SelectItem key={supplier.id || supplier._id} value={supplier.id || supplier._id}>
+                                  {supplier.name}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                         {errors.supplier && <p className="text-sm text-destructive">{errors.supplier}</p>}
@@ -339,7 +451,7 @@ export default function AddProductPage() {
                     <div className="space-y-2">
                       <Label htmlFor="status">Status</Label>
                       <Select
-                        value={formData.status}
+                        value={formData.status || "active"}
                         onValueChange={(value: "active" | "inactive") => handleInputChange("status", value)}
                       >
                         <SelectTrigger>

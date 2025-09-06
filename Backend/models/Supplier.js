@@ -20,9 +20,13 @@ const supplierSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: [true, 'Phone number is required'],
     trim: true,
-    match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number']
+    validate: {
+      validator: function(v) {
+        return !v || /^[\+]?[0-9][\d]{0,15}$/.test(v);
+      },
+      message: 'Please enter a valid phone number'
+    }
   },
   address: {
     street: {
@@ -86,8 +90,8 @@ const supplierSchema = new mongoose.Schema({
 
 // Indexes
 supplierSchema.index({ name: 1 });
-supplierSchema.index({ email: 1 });
-supplierSchema.index({ phone: 1 });
+supplierSchema.index({ email: 1 }, { sparse: true });
+supplierSchema.index({ phone: 1 }, { sparse: true });
 
 // Virtual for full address
 supplierSchema.virtual('fullAddress').get(function() {

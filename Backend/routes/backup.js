@@ -21,7 +21,7 @@ const upload = multer({ dest: 'uploads/' });
 // @route   GET /api/backup/export/products
 // @desc    Export products to CSV
 // @access  Private (Owner/Manager only)
-router.get('/export/products', [auth, checkRole([roles.OWNER, roles.MANAGER])], async (req, res) => {
+router.get('/export/products', auth, checkRole([roles.OWNER, roles.MANAGER]), async (req, res) => {
   try {
     const products = await Product.find()
       .populate('category', 'name')
@@ -61,7 +61,7 @@ router.get('/export/products', [auth, checkRole([roles.OWNER, roles.MANAGER])], 
 // @route   POST /api/backup/import/products
 // @desc    Import products from CSV
 // @access  Private (Owner/Manager only)
-router.post('/import/products', [auth, checkRole([roles.OWNER, roles.MANAGER]), upload.single('file')], async (req, res) => {
+router.post('/import/products', auth, checkRole([roles.OWNER, roles.MANAGER]), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
@@ -142,7 +142,7 @@ router.post('/import/products', [auth, checkRole([roles.OWNER, roles.MANAGER]), 
 // @route   GET /api/backup/export/full
 // @desc    Export full database backup
 // @access  Private (Owner only)
-router.get('/export/full', [auth, checkRole([roles.OWNER])], async (req, res) => {
+router.get('/export/full', auth, checkRole([roles.OWNER]), async (req, res) => {
   try {
     const [products, sales, purchases, suppliers, categories] = await Promise.all([
       Product.find().populate('category supplier').lean(),

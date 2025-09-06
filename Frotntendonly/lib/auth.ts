@@ -11,7 +11,7 @@ export interface User {
 // Check if user is authenticated
 export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false
-  const token = localStorage.getItem("auth_token")
+  const token = localStorage.getItem("token")
   const user = localStorage.getItem("current_user")
   return !!(token && user)
 }
@@ -73,7 +73,7 @@ export async function login(
       }
 
       // Store auth data
-      localStorage.setItem("auth_token", data.data.token)
+      localStorage.setItem("token", data.data.token)
       localStorage.setItem("current_user", JSON.stringify(user))
 
       return { success: true, user }
@@ -140,7 +140,7 @@ export async function register(userData: {
 // Logout function
 export function logout(): void {
   if (typeof window === "undefined") return
-  localStorage.removeItem("auth_token")
+  localStorage.removeItem("token")
   localStorage.removeItem("current_user")
 }
 
@@ -163,7 +163,7 @@ export function canAccess(feature: string): boolean {
 // Get auth token
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null
-  return localStorage.getItem("auth_token")
+  return localStorage.getItem("token")
 }
 
 // Validate token

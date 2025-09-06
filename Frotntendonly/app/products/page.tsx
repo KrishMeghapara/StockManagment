@@ -38,7 +38,12 @@ export default function ProductsPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch('/api/products')
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/products', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         if (response.ok) {
           const data = await response.json()
           const backendProducts = data.data?.products || []
@@ -47,19 +52,21 @@ export default function ProductsPage() {
             id: p._id,
             name: p.name || 'Unnamed Product',
             sku: p.sku || 'N/A',
-            category: p.category || 'Uncategorized',
-            supplier: p.supplier || 'Unknown Supplier',
-            currentStock: p.stock || 0,
-            minStock: 10, // Default min stock
-            maxStock: 100, // Default max stock
-            unitPrice: p.costPrice || p.price || 0,
-            sellingPrice: p.price || 0,
+            category: p.category?.name || 'Uncategorized',
+            supplier: p.supplier?.name || 'Unknown Supplier',
+            currentStock: p.currentStock || 0,
+            minStock: p.minStockLevel || 10,
+            maxStock: p.maxStockLevel || 100,
+            unitPrice: p.costPrice || 0,
+            sellingPrice: p.sellingPrice || 0,
             status: p.isActive !== false ? 'active' : 'inactive',
             lastUpdated: p.updatedAt ? new Date(p.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
           }))
           
           setProducts(formattedProducts)
           setFilteredProducts(formattedProducts)
+        } else {
+          console.error('Failed to fetch products:', response.status)
         }
       } catch (error) {
         console.error('Failed to fetch products:', error)
@@ -145,7 +152,7 @@ export default function ProductsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category) => (
+                    {categories.filter(Boolean).map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Search, Edit, Trash2, Building2, Phone, Mail } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 interface Supplier {
   id: string
@@ -27,11 +28,25 @@ export default function SuppliersPage() {
   const [filteredSuppliers, setFilteredSuppliers] = useState<Supplier[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [newSupplier, setNewSupplier] = useState({
+    name: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    address: ''
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     const fetchSuppliers = async () => {
       try {
-        const response = await fetch('/api/suppliers')
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/suppliers', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         if (response.ok) {
           const data = await response.json()
           const backendSuppliers = data.data?.suppliers || []
@@ -42,7 +57,7 @@ export default function SuppliersPage() {
             contactPerson: s.contactPerson || 'N/A',
             email: s.email || '',
             phone: s.phone || '',
-            address: s.address || '',
+            address: s.address?.street || s.fullAddress || '',
             status: s.isActive !== false ? 'active' : 'inactive',
             totalProducts: s.totalProducts || 0,
             lastOrderDate: s.lastOrderDate ? new Date(s.lastOrderDate).toLocaleDateString() : 'Never'
@@ -50,6 +65,8 @@ export default function SuppliersPage() {
           
           setSuppliers(formattedSuppliers)
           setFilteredSuppliers(formattedSuppliers)
+        } else {
+          console.error('Failed to fetch suppliers:', response.status, response.statusText)
         }
       } catch (error) {
         console.error('Failed to fetch suppliers:', error)
@@ -76,6 +93,64 @@ export default function SuppliersPage() {
     setFilteredSuppliers(filtered)
   }, [suppliers, searchTerm])
 
+  const handleAddSupplier = async () => {
+    if (!newSupplier.name.trim()) {
+      alert('Supplier name is required')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        alert('Please log in to add suppliers')
+        return
+      }
+      
+      console.log('Adding supplier:', newSupplier)
+      
+      const response = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newSupplier)
+      })
+      
+      console.log('Response status:', response.status)
+      const data = await response.json()
+      console.log('Response data:', data)
+
+      if (response.ok) {
+        const addedSupplier = {
+          id: data.data.supplier._id,
+          name: data.data.supplier.name,
+          contactPerson: data.data.supplier.contactPerson || 'N/A',
+          email: data.data.supplier.email || '',
+          phone: data.data.supplier.phone || '',
+          address: data.data.supplier.address?.street || '',
+          status: 'active' as const,
+          totalProducts: 0,
+          lastOrderDate: 'Never'
+        }
+        
+        setSuppliers([addedSupplier, ...suppliers])
+        setFilteredSuppliers([addedSupplier, ...filteredSuppliers])
+        setShowAddDialog(false)
+        setNewSupplier({ name: '', contactPerson: '', email: '', phone: '', address: '' })
+        alert('Supplier added successfully!')
+      } else {
+        alert(`Failed to add supplier: ${data.message}`)
+      }
+    } catch (error) {
+      console.error('Failed to add supplier:', error)
+      alert('Failed to add supplier. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -86,10 +161,68 @@ export default function SuppliersPage() {
               <h1 className="text-3xl font-bold text-foreground">Suppliers</h1>
               <p className="text-muted-foreground">Manage your supplier relationships</p>
             </div>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Supplier
-            </Button>
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Supplier
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Supplier</DialogTitle>
+                  <DialogDescription>
+                    Enter the supplier information below.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Input
+                      placeholder="Supplier Name *"
+                      value={newSupplier.name}
+                      onChange={(e) => setNewSupplier({...newSupplier, name: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      placeholder="Contact Person"
+                      value={newSupplier.contactPerson}
+                      onChange={(e) => setNewSupplier({...newSupplier, contactPerson: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      placeholder="Email"
+                      type="email"
+                      value={newSupplier.email}
+                      onChange={(e) => setNewSupplier({...newSupplier, email: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      placeholder="Phone"
+                      value={newSupplier.phone}
+                      onChange={(e) => setNewSupplier({...newSupplier, phone: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      placeholder="Address"
+                      value={newSupplier.address}
+                      onChange={(e) => setNewSupplier({...newSupplier, address: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddSupplier} disabled={isSubmitting}>
+                    {isSubmitting ? 'Adding...' : 'Add Supplier'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Search */}

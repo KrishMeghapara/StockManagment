@@ -18,11 +18,29 @@ export default function SettingsPage() {
     setIsExporting(true)
     try {
       const token = localStorage.getItem('token')
+      if (!token) {
+        alert('Please log in to export data')
+        return
+      }
+      
+      // First verify token is valid
+      const authCheck = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (!authCheck.ok) {
+        alert('Session expired. Please log in again.')
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+        return
+      }
+      
       const response = await fetch('/api/backup/export/products', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
+      
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
@@ -35,8 +53,9 @@ export default function SettingsPage() {
         document.body.removeChild(a)
         alert('Products exported successfully!')
       } else {
-        const error = await response.json()
-        alert(`Export failed: ${error.message || 'Unknown error'}`)
+        const errorText = await response.text()
+        console.error('Export error:', errorText)
+        alert(`Export failed: ${response.status} ${response.statusText}`)
       }
     } catch (error) {
       console.error('Export failed:', error)
@@ -50,9 +69,15 @@ export default function SettingsPage() {
     setIsExporting(true)
     try {
       const token = localStorage.getItem('token')
+      if (!token) {
+        alert('Please log in to export data')
+        return
+      }
+      
       const response = await fetch('/api/backup/export/full', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       })
       if (response.ok) {
@@ -88,6 +113,11 @@ export default function SettingsPage() {
 
     try {
       const token = localStorage.getItem('token')
+      if (!token) {
+        alert('Please log in to import data')
+        return
+      }
+      
       const response = await fetch('/api/backup/import/products', {
         method: 'POST',
         headers: {

@@ -23,7 +23,12 @@ export function StockSummaryCards() {
   useEffect(() => {
     const fetchSummary = async () => {
       try {
-        const response = await fetch('/api/products')
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/products', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         if (response.ok) {
           const data = await response.json()
           const products = data.data?.products || []

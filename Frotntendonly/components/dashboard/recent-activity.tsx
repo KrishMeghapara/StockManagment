@@ -19,50 +19,61 @@ export function RecentActivity() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setActivities([
-        {
-          id: "1",
-          type: "sale",
-          description: "Sale completed for Wireless Headphones",
-          timestamp: "2 minutes ago",
-          amount: 299.99,
-          user: "John Doe",
-        },
-        {
-          id: "2",
-          type: "stock_update",
-          description: "Stock updated for Office Chair",
-          timestamp: "15 minutes ago",
-          user: "Jane Smith",
-        },
-        {
-          id: "3",
-          type: "purchase",
-          description: "New purchase order created",
-          timestamp: "1 hour ago",
-          amount: 1250.0,
-          user: "Mike Johnson",
-        },
-        {
-          id: "4",
-          type: "user_action",
-          description: "New product added to inventory",
-          timestamp: "2 hours ago",
-          user: "Sarah Wilson",
-        },
-        {
-          id: "5",
-          type: "sale",
-          description: "Sale completed for Laptop Stand",
-          timestamp: "3 hours ago",
-          amount: 89.99,
-          user: "John Doe",
-        },
-      ])
-      setIsLoading(false)
-    }, 1000)
+    const fetchRecentActivity = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const [salesRes, purchasesRes] = await Promise.all([
+          fetch('/api/sales?limit=3', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch('/api/purchases?limit=2', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ])
+        
+        const recentActivities: Activity[] = []
+        
+        if (salesRes.ok) {
+          const salesData = await salesRes.json()
+          const sales = salesData.data?.sales || []
+          sales.forEach((sale: any) => {
+            recentActivities.push({
+              id: sale._id,
+              type: 'sale',
+              description: `Sale completed - ${sale.items?.length || 0} items`,
+              timestamp: new Date(sale.createdAt).toLocaleString(),
+              amount: sale.totalAmount,
+              user: sale.createdBy || 'Unknown'
+            })
+          })
+        }
+        
+        if (purchasesRes.ok) {
+          const purchasesData = await purchasesRes.json()
+          const purchases = purchasesData.data?.purchases || []
+          purchases.forEach((purchase: any) => {
+            recentActivities.push({
+              id: purchase._id,
+              type: 'purchase',
+              description: `Purchase order created - ${purchase.items?.length || 0} items`,
+              timestamp: new Date(purchase.createdAt).toLocaleString(),
+              amount: purchase.totalAmount,
+              user: purchase.createdBy || 'Unknown'
+            })
+          })
+        }
+        
+        // Sort by timestamp (most recent first)
+        recentActivities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        setActivities(recentActivities.slice(0, 5))
+      } catch (error) {
+        console.error('Failed to fetch recent activity:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchRecentActivity()
   }, [])
 
   const getActivityIcon = (type: Activity["type"]) => {

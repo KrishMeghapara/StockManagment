@@ -78,72 +78,58 @@ export default function NewPurchasePage() {
   const [success, setSuccess] = useState("")
 
   useEffect(() => {
-    // Simulate API calls to fetch products and suppliers
-    setTimeout(() => {
-      const mockProducts: Product[] = [
-        {
-          id: "1",
-          name: "Wireless Headphones",
-          sku: "WH-001",
-          currentStock: 5,
-          minStock: 20,
-          lastUnitCost: 150.0,
-        },
-        {
-          id: "2",
-          name: "Office Chair",
-          sku: "OC-002",
-          currentStock: 2,
-          minStock: 10,
-          lastUnitCost: 120.0,
-        },
-        {
-          id: "3",
-          name: "Laptop Stand",
-          sku: "LS-003",
-          currentStock: 8,
-          minStock: 15,
-          lastUnitCost: 25.0,
-        },
-        {
-          id: "4",
-          name: "USB Cable",
-          sku: "UC-004",
-          currentStock: 12,
-          minStock: 50,
-          lastUnitCost: 5.0,
-        },
-        {
-          id: "5",
-          name: "Desk Lamp",
-          sku: "DL-005",
-          currentStock: 25,
-          minStock: 15,
-          lastUnitCost: 30.0,
-        },
-      ]
-
-      const mockSuppliers: Supplier[] = [
-        { id: "1", name: "TechCorp", email: "orders@techcorp.com", phone: "+1 (555) 123-4567" },
-        { id: "2", name: "FurniSupply", email: "sales@furnisupply.com", phone: "+1 (555) 234-5678" },
-        { id: "3", name: "AccessoryHub", email: "orders@accessoryhub.com", phone: "+1 (555) 345-6789" },
-        { id: "4", name: "OfficeMax", email: "wholesale@officemax.com", phone: "+1 (555) 456-7890" },
-        { id: "5", name: "LightingCo", email: "orders@lightingco.com", phone: "+1 (555) 567-8901" },
-      ]
-
-      setProducts(mockProducts)
-      setSuppliers(mockSuppliers)
-
-      // Pre-select product if coming from low stock alert
-      if (preSelectedProduct) {
-        setSelectedProduct(preSelectedProduct)
-        const product = mockProducts.find((p) => p.id === preSelectedProduct)
-        if (product && product.lastUnitCost) {
-          setUnitCost(product.lastUnitCost.toString())
-          setQuantity(Math.max(product.minStock - product.currentStock, 1))
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const headers = { 'Authorization': `Bearer ${token}` }
+        
+        const [productsRes, suppliersRes] = await Promise.all([
+          fetch('/api/products', { headers }),
+          fetch('/api/suppliers', { headers })
+        ])
+        
+        if (productsRes.ok) {
+          const productsData = await productsRes.json()
+          const dbProducts = productsData.data?.products || []
+          const formattedProducts: Product[] = dbProducts.map((p: any) => ({
+            id: p._id,
+            name: p.name,
+            sku: p.sku,
+            currentStock: p.stock || 0,
+            minStock: p.minStockLevel || 10,
+            lastUnitCost: p.price || 0
+          }))
+          setProducts(formattedProducts)
+          
+          // Pre-select product if coming from low stock alert
+          if (preSelectedProduct) {
+            setSelectedProduct(preSelectedProduct)
+            const product = formattedProducts.find((p) => p.id === preSelectedProduct)
+            if (product && product.lastUnitCost) {
+              setUnitCost(product.lastUnitCost.toString())
+              setQuantity(Math.max(product.minStock - product.currentStock, 1))
+            }
+          }
         }
+        
+        if (suppliersRes.ok) {
+          const suppliersData = await suppliersRes.json()
+          const dbSuppliers = suppliersData.data?.suppliers || []
+          const formattedSuppliers: Supplier[] = dbSuppliers.map((s: any) => ({
+            id: s._id,
+            name: s.name,
+            email: s.email,
+            phone: s.phone,
+            address: s.address
+          }))
+          setSuppliers(formattedSuppliers)
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error)
       }
-    }, 500)
+    }
+    
+    fetchData()
   }, [preSelectedProduct])
 
   useEffect(() => {
@@ -261,17 +247,42 @@ export default function NewPurchasePage() {
     setSuccess("")
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      setSuccess("Purchase order created successfully!")
-
-      // Redirect to purchases list after success
-      setTimeout(() => {
-        router.push("/purchases")
-      }, 2000)
+      const token = localStorage.getItem('token')
+      const purchaseData = {
+        supplier: formData.supplier,
+        items: formData.items.map(item => ({
+          product: item.productId,
+          quantity: item.quantity,
+          unitCost: item.unitCost
+        })),
+        expectedDeliveryDate: formData.expectedDelivery,
+        taxAmount: formData.tax,
+        discountAmount: 0,
+        notes: formData.notes
+      }
+      
+      const response = await fetch('/api/purchases', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(purchaseData)
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setSuccess("Purchase order created successfully!")
+        setTimeout(() => {
+          router.push("/purchases")
+        }, 2000)
+      } else {
+        setErrors({ submit: result.message || 'Failed to create purchase order' })
+      }
     } catch (error) {
       console.error("Failed to create purchase order:", error)
+      setErrors({ submit: 'Network error. Please try again.' })
     } finally {
       setIsLoading(false)
     }
