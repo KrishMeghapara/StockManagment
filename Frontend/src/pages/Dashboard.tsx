@@ -1,5 +1,6 @@
-import { Card, CardContent, Grid, Typography } from '@mui/material';
+import { Card, CardContent, Grid, Typography, List, ListItem, ListItemText, Box, Chip } from '@mui/material';
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useProducts } from '../../hooks/useProducts';
 
 const data = [
   { name: 'Mon', sales: 12 },
@@ -12,28 +13,51 @@ const data = [
 ];
 
 export default function Dashboard() {
+  const { data: products = [], isLoading } = useProducts();
+  const totalProducts = products.length;
+  const lowStockList = products.filter((p) => (p.stock ?? 0) <= 5).slice(0, 5);
+
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} md={3}>
-        <Card><CardContent><Typography variant="subtitle2">Total Products</Typography><Typography variant="h5">—</Typography></CardContent></Card>
+        <Card aria-labelledby="total-products">
+          <CardContent>
+            <Typography id="total-products" variant="subtitle2">Total Products</Typography>
+            <Typography variant="h5">{isLoading ? 'Loading...' : totalProducts}</Typography>
+          </CardContent>
+        </Card>
       </Grid>
+
       <Grid item xs={12} md={3}>
-        <Card><CardContent><Typography variant="subtitle2">Low Stock</Typography><Typography variant="h5">—</Typography></CardContent></Card>
+        <Card aria-labelledby="low-stock">
+          <CardContent>
+            <Typography id="low-stock" variant="subtitle2">Low Stock</Typography>
+            <Typography variant="h5">{lowStockList.length}</Typography>
+            <Box mt={1}>
+              {lowStockList.map((p) => (
+                <Chip key={p._id} label={`${p.name} (${p.stock})`} size="small" sx={{ mr: 1, mt: 1 }} color="warning" />
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
       </Grid>
+
       <Grid item xs={12} md={3}>
-        <Card><CardContent><Typography variant="subtitle2">Sales (Today)</Typography><Typography variant="h5">—</Typography></CardContent></Card>
+        <Card aria-labelledby="sales-today"><CardContent><Typography id="sales-today" variant="subtitle2">Sales (Today)</Typography><Typography variant="h5">—</Typography></CardContent></Card>
       </Grid>
+
       <Grid item xs={12} md={3}>
-        <Card><CardContent><Typography variant="subtitle2">Purchases (Today)</Typography><Typography variant="h5">—</Typography></CardContent></Card>
+        <Card aria-labelledby="purchases-today"><CardContent><Typography id="purchases-today" variant="subtitle2">Purchases (Today)</Typography><Typography variant="h5">—</Typography></CardContent></Card>
       </Grid>
+
       <Grid item xs={12}>
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>Weekly Sales</Typography>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data}>
+              <LineChart data={data} aria-label="Weekly sales chart">
                 <Line type="monotone" dataKey="sales" stroke="#1976d2" />
-                <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+                <CartesianGrid stroke="#eee" strokeDasharray="5 5" />
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
