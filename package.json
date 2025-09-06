@@ -1,11 +1,15 @@
 {
-  "name": "stock-management",
-  "private": true,
+  "name": "stock-management-system",
+  "version": "1.0.0",
+  "description": "Full-stack stock management system",
   "scripts": {
-    "dev": "concurrently -k -n BACKEND,FRONTEND -c blue,green \"cd Backend && npm run dev\" \"cd Frontend && npm run dev\"",
-    "setup": "npm --prefix Backend install && npm --prefix Frontend install"
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd Backend && npm run dev",
+    "frontend": "cd Frotntendonly && npm run dev",
+    "install-all": "cd Backend && npm install && cd ../Frotntendonly && npm install",
+    "build": "cd Frotntendonly && npm run build"
   },
   "devDependencies": {
-    "concurrently": "^9.0.0"
+    "concurrently": "^8.2.2"
   }
 }
