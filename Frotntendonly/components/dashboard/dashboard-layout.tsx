@@ -111,7 +111,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Mobile sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="sm" className="fixed top-4 left-4 z-40 lg:hidden">
+          <Button variant="ghost" size="sm" className="fixed top-4 left-4 z-50 lg:hidden bg-background shadow-md">
             <Menu className="h-5 w-5" />
           </Button>
         </SheetTrigger>
@@ -121,12 +121,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </Sheet>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
         <Sidebar />
       </div>
 
       {/* Main content */}
       <div className="lg:pl-64">
+        <div className="lg:hidden">
+          <div className="h-16"></div>
+        </div>
         <main className="p-6">{children}</main>
       </div>
     </div>

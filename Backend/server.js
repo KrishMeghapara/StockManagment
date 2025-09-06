@@ -37,6 +37,8 @@ app.use('/api/suppliers', require('./routes/suppliers'));
 app.use('/api/purchases', require('./routes/purchases'));
 app.use('/api/sales', require('./routes/sales'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/backup', require('./routes/backup'));
+app.use('/api/integrations', require('./routes/integrations'));
 
 // Root endpoint - basic info
 app.get('/', (req, res) => {

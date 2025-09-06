@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { ProtectedRoute } from "@/components/auth/protected-route"
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -30,46 +32,113 @@ export default function ReportsPage() {
     to: new Date(),
   })
   const [reportType, setReportType] = useState("overview")
+  const [salesData, setSalesData] = useState<any[]>([])
+  const [topProducts, setTopProducts] = useState<any[]>([])
+  const [categoryData, setCategoryData] = useState<any[]>([])
+  const [inventoryData, setInventoryData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Mock data - replace with actual API calls
-  const salesData = [
-    { month: "Jan", sales: 45000, profit: 12000 },
-    { month: "Feb", sales: 52000, profit: 15000 },
-    { month: "Mar", sales: 48000, profit: 13500 },
-    { month: "Apr", sales: 61000, profit: 18000 },
-    { month: "May", sales: 55000, profit: 16500 },
-    { month: "Jun", sales: 67000, profit: 20000 },
-  ]
+  useEffect(() => {
+    const fetchReportsData = async () => {
+      try {
+        const [salesRes, productsRes, categoriesRes] = await Promise.all([
+          fetch('/api/reports/sales'),
+          fetch('/api/products'),
+          fetch('/api/categories')
+        ])
+        
+        if (salesRes.ok) {
+          const salesData = await salesRes.json()
+          setSalesData(salesData.data?.monthlySales || [])
+        }
+        
+        if (productsRes.ok) {
+          const productsData = await productsRes.json()
+          const products = productsData.data?.products || []
+          
+          // Top products by sales
+          const topProds = products
+            .sort((a: any, b: any) => (b.totalSales || 0) - (a.totalSales || 0))
+            .slice(0, 5)
+            .map((p: any) => ({
+              name: p.name,
+              sales: p.totalSales || 0,
+              quantity: p.totalQuantitySold || 0
+            }))
+          setTopProducts(topProds)
+          
+          // Inventory data by category
+          const categoryStats = products.reduce((acc: any, product: any) => {
+            const category = product.category?.name || 'Uncategorized'
+            if (!acc[category]) {
+              acc[category] = { inStock: 0, lowStock: 0, outOfStock: 0 }
+            }
+            
+            if (product.currentStock === 0) {
+              acc[category].outOfStock++
+            } else if (product.currentStock <= product.minimumStock) {
+              acc[category].lowStock++
+            } else {
+              acc[category].inStock++
+            }
+            
+            return acc
+          }, {})
+          
+          const inventoryStats = Object.entries(categoryStats).map(([category, stats]: [string, any]) => ({
+            category,
+            ...stats
+          }))
+          setInventoryData(inventoryStats)
+        }
+        
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json()
+          const categories = categoriesData.data?.categories || []
+          
+          const categoryStats = categories.map((cat: any, index: number) => ({
+            name: cat.name,
+            value: Math.max(10, (cat.productCount || 0) * 5), // Mock percentage
+            sales: (cat.productCount || 0) * 1000 // Mock sales
+          }))
+          setCategoryData(categoryStats)
+        }
+        
+      } catch (error) {
+        console.error('Failed to fetch reports data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchReportsData()
+  }, [])
 
-  const topProducts = [
-    { name: "Laptop Pro", sales: 25000, quantity: 45 },
-    { name: "Wireless Mouse", sales: 8500, quantity: 120 },
-    { name: "Keyboard", sales: 6200, quantity: 85 },
-    { name: "Monitor", sales: 15000, quantity: 30 },
-    { name: "Headphones", sales: 4800, quantity: 65 },
-  ]
 
-  const categoryData = [
-    { name: "Electronics", value: 45, sales: 125000 },
-    { name: "Accessories", value: 25, sales: 68000 },
-    { name: "Software", value: 20, sales: 52000 },
-    { name: "Hardware", value: 10, sales: 28000 },
-  ]
 
-  const inventoryData = [
-    { category: "Electronics", inStock: 245, lowStock: 12, outOfStock: 3 },
-    { category: "Accessories", inStock: 180, lowStock: 8, outOfStock: 1 },
-    { category: "Software", inStock: 95, lowStock: 5, outOfStock: 0 },
-    { category: "Hardware", inStock: 120, lowStock: 15, outOfStock: 2 },
-  ]
-
-  const handleExport = (format: string) => {
-    // Mock export functionality
-    console.log(`Exporting report as ${format}`)
+  const handleExport = async (format: string) => {
+    try {
+      const response = await fetch(`/api/reports/export?format=${format}&type=${reportType}`)
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${reportType}-report.${format}`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      }
+    } catch (error) {
+      console.error('Export failed:', error)
+    }
   }
 
   return (
-    <div className="space-y-6">
+    <ProtectedRoute>
+      <DashboardLayout>
+        <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
@@ -304,7 +373,9 @@ export default function ReportsPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
-    </div>
+      </DashboardLayout>
+    </ProtectedRoute>
   )
 }

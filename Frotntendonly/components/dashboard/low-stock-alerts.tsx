@@ -20,16 +20,28 @@ export function LowStockAlerts() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setLowStockItems([
-        { id: "1", name: "Wireless Headphones", currentStock: 5, minStock: 20, category: "Electronics" },
-        { id: "2", name: "Office Chair", currentStock: 2, minStock: 10, category: "Furniture" },
-        { id: "3", name: "Laptop Stand", currentStock: 8, minStock: 15, category: "Accessories" },
-        { id: "4", name: "USB Cable", currentStock: 12, minStock: 50, category: "Electronics" },
-      ])
-      setIsLoading(false)
-    }, 1000)
+    const fetchLowStockItems = async () => {
+      try {
+        const response = await fetch('/api/products?lowStock=true')
+        if (response.ok) {
+          const data = await response.json()
+          const products = data.data?.products || []
+          const lowStock = products.filter((p: any) => p.stock <= 10).map((p: any) => ({
+            id: p._id,
+            name: p.name,
+            currentStock: p.stock || 0,
+            minStock: 10,
+            category: p.category || 'Uncategorized'
+          }))
+          setLowStockItems(lowStock)
+        }
+      } catch (error) {
+        console.error('Failed to fetch low stock items:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchLowStockItems()
   }, [])
 
   if (isLoading) {

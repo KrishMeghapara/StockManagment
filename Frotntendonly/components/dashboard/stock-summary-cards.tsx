@@ -21,21 +21,28 @@ export function StockSummaryCards() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate API call - replace with actual API
     const fetchSummary = async () => {
       try {
-        // Mock data for demonstration
-        setTimeout(() => {
+        const response = await fetch('/api/products')
+        if (response.ok) {
+          const data = await response.json()
+          const products = data.data?.products || []
+          
+          const totalProducts = products.length
+          const totalValue = products.reduce((sum: number, p: any) => sum + ((p.price || 0) * (p.stock || 0)), 0)
+          const lowStockItems = products.filter((p: any) => (p.stock || 0) > 0 && (p.stock || 0) <= 10).length
+          const outOfStockItems = products.filter((p: any) => (p.stock || 0) === 0).length
+          
           setSummary({
-            totalProducts: 1247,
-            totalValue: 89650.5,
-            lowStockItems: 23,
-            outOfStockItems: 5,
+            totalProducts,
+            totalValue,
+            lowStockItems,
+            outOfStockItems
           })
-          setIsLoading(false)
-        }, 1000)
+        }
       } catch (error) {
         console.error("Failed to fetch stock summary:", error)
+      } finally {
         setIsLoading(false)
       }
     }

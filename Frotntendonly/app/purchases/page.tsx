@@ -45,115 +45,48 @@ export default function PurchasesPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockPurchases: Purchase[] = [
-        {
-          id: "1",
-          purchaseOrderNumber: "PO-2024-001",
-          supplier: "TechCorp",
-          supplierEmail: "orders@techcorp.com",
-          items: [
-            {
-              productId: "1",
-              productName: "Wireless Headphones",
-              quantity: 50,
-              unitCost: 150.0,
-              total: 7500.0,
-            },
-            {
-              productId: "4",
-              productName: "USB Cable",
-              quantity: 100,
-              unitCost: 5.0,
-              total: 500.0,
-            },
-          ],
-          subtotal: 8000.0,
-          tax: 800.0,
-          shipping: 150.0,
-          total: 8950.0,
-          status: "received",
-          expectedDelivery: "2024-01-20",
-          actualDelivery: "2024-01-18",
-          createdAt: "2024-01-10T09:00:00Z",
-          createdBy: "Jane Smith",
-          notes: "Bulk order for Q1 inventory",
-        },
-        {
-          id: "2",
-          purchaseOrderNumber: "PO-2024-002",
-          supplier: "FurniSupply",
-          supplierEmail: "sales@furnisupply.com",
-          items: [
-            {
-              productId: "2",
-              productName: "Office Chair",
-              quantity: 25,
-              unitCost: 120.0,
-              total: 3000.0,
-            },
-          ],
-          subtotal: 3000.0,
-          tax: 300.0,
-          shipping: 200.0,
-          total: 3500.0,
-          status: "ordered",
-          expectedDelivery: "2024-01-25",
-          createdAt: "2024-01-12T14:30:00Z",
-          createdBy: "Mike Johnson",
-        },
-        {
-          id: "3",
-          purchaseOrderNumber: "PO-2024-003",
-          supplier: "AccessoryHub",
-          supplierEmail: "orders@accessoryhub.com",
-          items: [
-            {
-              productId: "3",
-              productName: "Laptop Stand",
-              quantity: 30,
-              unitCost: 25.0,
-              total: 750.0,
-            },
-          ],
-          subtotal: 750.0,
-          tax: 75.0,
-          shipping: 50.0,
-          total: 875.0,
-          status: "pending",
-          expectedDelivery: "2024-01-30",
-          createdAt: "2024-01-14T11:15:00Z",
-          createdBy: "Sarah Wilson",
-        },
-        {
-          id: "4",
-          purchaseOrderNumber: "PO-2024-004",
-          supplier: "LightingCo",
-          supplierEmail: "orders@lightingco.com",
-          items: [
-            {
-              productId: "5",
-              productName: "Desk Lamp",
-              quantity: 40,
-              unitCost: 30.0,
-              total: 1200.0,
-            },
-          ],
-          subtotal: 1200.0,
-          tax: 120.0,
-          shipping: 80.0,
-          total: 1400.0,
-          status: "cancelled",
-          createdAt: "2024-01-08T16:45:00Z",
-          createdBy: "John Doe",
-          notes: "Cancelled due to supplier issues",
-        },
-      ]
-      setPurchases(mockPurchases)
-      setFilteredPurchases(mockPurchases)
-      setIsLoading(false)
-    }, 1000)
+    const fetchPurchases = async () => {
+      try {
+        const response = await fetch('/api/purchases')
+        if (response.ok) {
+          const data = await response.json()
+          const backendPurchases = data.data?.purchases || []
+          
+          const formattedPurchases: Purchase[] = backendPurchases.map((p: any) => ({
+            id: p._id,
+            purchaseOrderNumber: p.purchaseOrderNumber || `PO-${p._id.slice(-6)}`,
+            supplier: p.supplier?.name || 'Unknown Supplier',
+            supplierEmail: p.supplier?.email || '',
+            items: p.items?.map((item: any) => ({
+              productId: item.product?._id || item.productId,
+              productName: item.product?.name || item.productName || 'Unknown Product',
+              quantity: item.quantity || 0,
+              unitCost: item.unitCost || 0,
+              total: (item.quantity || 0) * (item.unitCost || 0)
+            })) || [],
+            subtotal: p.subtotal || 0,
+            tax: p.tax || 0,
+            shipping: p.shipping || 0,
+            total: p.total || 0,
+            status: p.status || 'pending',
+            expectedDelivery: p.expectedDelivery,
+            actualDelivery: p.actualDelivery,
+            createdAt: p.createdAt,
+            createdBy: p.createdBy?.name || 'Unknown',
+            notes: p.notes
+          }))
+          
+          setPurchases(formattedPurchases)
+          setFilteredPurchases(formattedPurchases)
+        }
+      } catch (error) {
+        console.error('Failed to fetch purchases:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchPurchases()
   }, [])
 
   useEffect(() => {
@@ -214,7 +147,7 @@ export default function PurchasesPage() {
     })
   }
 
-  const suppliers = [...new Set(purchases.map((p) => p.supplier))]
+  const suppliers = [...new Set(purchases.map((p) => p.supplier))].filter(Boolean)
 
   // Calculate summary stats
   const receivedPurchases = purchases.filter((p) => p.status === "received")

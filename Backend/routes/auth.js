@@ -309,7 +309,7 @@ router.get('/users', [
   checkRole([roles.OWNER, roles.MANAGER])
 ], async (req, res) => {
   try {
-    const users = await User.find({ isActive: true })
+    const users = await User.find()
       .select('-password')
       .sort({ createdAt: -1 });
 
@@ -369,6 +369,48 @@ router.put('/users/:id', [
     });
   } catch (error) {
     console.error('Update user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   DELETE /api/auth/users/:id
+// @desc    Delete user
+// @access  Private (Owner only)
+router.delete('/users/:id', [
+  auth,
+  checkRole([roles.OWNER])
+], async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prevent deleting the last owner
+    if (user.role === 'owner') {
+      const ownerCount = await User.countDocuments({ role: 'owner', isActive: true });
+      if (ownerCount <= 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot delete the last owner account'
+        });
+      }
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

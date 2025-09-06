@@ -36,84 +36,39 @@ export default function ProductsPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockProducts: Product[] = [
-        {
-          id: "1",
-          name: "Wireless Headphones",
-          sku: "WH-001",
-          category: "Electronics",
-          supplier: "TechCorp",
-          currentStock: 5,
-          minStock: 20,
-          maxStock: 100,
-          unitPrice: 150.0,
-          sellingPrice: 299.99,
-          status: "active",
-          lastUpdated: "2024-01-15",
-        },
-        {
-          id: "2",
-          name: "Office Chair",
-          sku: "OC-002",
-          category: "Furniture",
-          supplier: "FurniSupply",
-          currentStock: 2,
-          minStock: 10,
-          maxStock: 50,
-          unitPrice: 120.0,
-          sellingPrice: 249.99,
-          status: "active",
-          lastUpdated: "2024-01-14",
-        },
-        {
-          id: "3",
-          name: "Laptop Stand",
-          sku: "LS-003",
-          category: "Accessories",
-          supplier: "AccessoryHub",
-          currentStock: 8,
-          minStock: 15,
-          maxStock: 75,
-          unitPrice: 25.0,
-          sellingPrice: 89.99,
-          status: "active",
-          lastUpdated: "2024-01-13",
-        },
-        {
-          id: "4",
-          name: "USB Cable",
-          sku: "UC-004",
-          category: "Electronics",
-          supplier: "TechCorp",
-          currentStock: 12,
-          minStock: 50,
-          maxStock: 200,
-          unitPrice: 5.0,
-          sellingPrice: 19.99,
-          status: "active",
-          lastUpdated: "2024-01-12",
-        },
-        {
-          id: "5",
-          name: "Desk Lamp",
-          sku: "DL-005",
-          category: "Furniture",
-          supplier: "LightingCo",
-          currentStock: 25,
-          minStock: 15,
-          maxStock: 60,
-          unitPrice: 30.0,
-          sellingPrice: 79.99,
-          status: "inactive",
-          lastUpdated: "2024-01-11",
-        },
-      ]
-      setProducts(mockProducts)
-      setFilteredProducts(mockProducts)
-      setIsLoading(false)
-    }, 1000)
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/api/products')
+        if (response.ok) {
+          const data = await response.json()
+          const backendProducts = data.data?.products || []
+          
+          const formattedProducts: Product[] = backendProducts.map((p: any) => ({
+            id: p._id,
+            name: p.name || 'Unnamed Product',
+            sku: p.sku || 'N/A',
+            category: p.category || 'Uncategorized',
+            supplier: p.supplier || 'Unknown Supplier',
+            currentStock: p.stock || 0,
+            minStock: 10, // Default min stock
+            maxStock: 100, // Default max stock
+            unitPrice: p.costPrice || p.price || 0,
+            sellingPrice: p.price || 0,
+            status: p.isActive !== false ? 'active' : 'inactive',
+            lastUpdated: p.updatedAt ? new Date(p.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+          }))
+          
+          setProducts(formattedProducts)
+          setFilteredProducts(formattedProducts)
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchProducts()
   }, [])
 
   useEffect(() => {

@@ -43,113 +43,46 @@ export default function SalesPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockSales: Sale[] = [
-        {
-          id: "1",
-          invoiceNumber: "INV-2024-001",
-          customerName: "John Smith",
-          customerEmail: "john.smith@email.com",
-          items: [
-            {
-              productId: "1",
-              productName: "Wireless Headphones",
-              quantity: 2,
-              unitPrice: 299.99,
-              total: 599.98,
-            },
-            {
-              productId: "3",
-              productName: "Laptop Stand",
-              quantity: 1,
-              unitPrice: 89.99,
-              total: 89.99,
-            },
-          ],
-          subtotal: 689.97,
-          tax: 69.0,
-          discount: 0,
-          total: 758.97,
-          status: "completed",
-          paymentMethod: "card",
-          createdAt: "2024-01-15T14:30:00Z",
-          createdBy: "Jane Doe",
-        },
-        {
-          id: "2",
-          invoiceNumber: "INV-2024-002",
-          customerName: "Sarah Johnson",
-          customerEmail: "sarah.j@email.com",
-          items: [
-            {
-              productId: "2",
-              productName: "Office Chair",
-              quantity: 1,
-              unitPrice: 249.99,
-              total: 249.99,
-            },
-          ],
-          subtotal: 249.99,
-          tax: 25.0,
-          discount: 25.0,
-          total: 249.99,
-          status: "completed",
-          paymentMethod: "cash",
-          createdAt: "2024-01-14T10:15:00Z",
-          createdBy: "John Doe",
-        },
-        {
-          id: "3",
-          invoiceNumber: "INV-2024-003",
-          customerName: "Mike Wilson",
-          customerEmail: "mike.w@email.com",
-          items: [
-            {
-              productId: "4",
-              productName: "USB Cable",
-              quantity: 5,
-              unitPrice: 19.99,
-              total: 99.95,
-            },
-          ],
-          subtotal: 99.95,
-          tax: 10.0,
-          discount: 0,
-          total: 109.95,
-          status: "pending",
-          paymentMethod: "bank_transfer",
-          createdAt: "2024-01-13T16:45:00Z",
-          createdBy: "Jane Doe",
-        },
-        {
-          id: "4",
-          invoiceNumber: "INV-2024-004",
-          customerName: "Emily Davis",
-          customerEmail: "emily.d@email.com",
-          items: [
-            {
-              productId: "5",
-              productName: "Desk Lamp",
-              quantity: 2,
-              unitPrice: 79.99,
-              total: 159.98,
-            },
-          ],
-          subtotal: 159.98,
-          tax: 16.0,
-          discount: 0,
-          total: 175.98,
-          status: "cancelled",
-          paymentMethod: "card",
-          createdAt: "2024-01-12T09:20:00Z",
-          createdBy: "John Doe",
-        },
-      ]
-      setSales(mockSales)
-      setFilteredSales(mockSales)
-      setIsLoading(false)
-    }, 1000)
+    const fetchSales = async () => {
+      try {
+        const response = await fetch('/api/sales')
+        if (response.ok) {
+          const data = await response.json()
+          const backendSales = data.data?.sales || []
+          
+          const formattedSales: Sale[] = backendSales.map((s: any) => ({
+            id: s._id,
+            invoiceNumber: s.invoiceNumber || `INV-${s._id.slice(-6)}`,
+            customerName: s.customerName || 'Walk-in Customer',
+            customerEmail: s.customerEmail || '',
+            items: s.items?.map((item: any) => ({
+              productId: item.productId || item.product?._id || '',
+              productName: item.productName || item.product?.name || 'Unknown Product',
+              quantity: item.quantity || 0,
+              unitPrice: item.unitPrice || item.price || 0,
+              total: (item.quantity || 0) * (item.unitPrice || item.price || 0)
+            })) || [],
+            subtotal: s.subtotal || s.totalAmount || 0,
+            tax: s.tax || 0,
+            discount: s.discount || 0,
+            total: s.totalAmount || s.total || 0,
+            status: s.status === 'completed' ? 'completed' : s.status === 'cancelled' ? 'cancelled' : 'pending',
+            paymentMethod: s.paymentMethod === 'cash' ? 'cash' : s.paymentMethod === 'bank_transfer' ? 'bank_transfer' : 'card',
+            createdAt: s.createdAt || new Date().toISOString(),
+            createdBy: s.createdBy?.name || s.createdBy || 'Unknown User'
+          }))
+          
+          setSales(formattedSales)
+          setFilteredSales(formattedSales)
+        }
+      } catch (error) {
+        console.error('Failed to fetch sales:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchSales()
   }, [])
 
   useEffect(() => {

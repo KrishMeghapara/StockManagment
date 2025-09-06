@@ -74,6 +74,34 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  
+  // Batch and Expiry Tracking
+  batchNumber: {
+    type: String,
+    trim: true
+  },
+  
+  expiryDate: {
+    type: Date
+  },
+  
+  manufacturingDate: {
+    type: Date
+  },
+  
+  trackBatches: {
+    type: Boolean,
+    default: false
+  },
+  
+  batches: [{
+    batchNumber: String,
+    quantity: Number,
+    expiryDate: Date,
+    manufacturingDate: Date,
+    costPrice: Number,
+    receivedDate: Date
+  }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
