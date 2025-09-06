@@ -1,0 +1,11 @@
+{
+  "name": "stock-management",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n BACKEND,FRONTEND -c blue,green \"cd Backend && npm run dev\" \"cd Frontend && npm run dev\"",
+    "setup": "npm --prefix Backend install && npm --prefix Frontend install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
